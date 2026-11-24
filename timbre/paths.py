@@ -70,18 +70,26 @@ def uv_executable() -> str | None:
     return shutil.which("uv")
 
 
-BUNDLED_MODEL_NAME = "Ming-3.0-tts-0.5B"
+MODEL_MARKER = ".timbre-model.json"   # written by engine/model_store.py after a verified download
 
 
-def bundled_model_dir() -> Path | None:
-    """Model weights shipped with the installer ({app}\\models\\...), or next to the source tree."""
-    roots = [Path(sys.executable).parent] if is_frozen() else []
-    roots.append(resource_root())
-    for root in roots:
-        folder = root / "models" / BUNDLED_MODEL_NAME
-        if (folder / "model.safetensors").is_file() and (folder / "config.json").is_file():
-            return folder
-    return None
+def models_dir(custom: str = "") -> Path:
+    """Where downloaded model weights live (Settings → Storage can change it)."""
+    return Path(custom) if custom else data_dir() / "models"
+
+
+def model_folder(custom: str, repo_id: str) -> Path:
+    return models_dir(custom) / repo_id.split("/")[-1]
+
+
+def model_downloaded(folder: Path) -> bool:
+    import json
+    try:
+        info = json.loads((folder / MODEL_MARKER).read_text(encoding="utf-8"))
+        return all((folder / f["name"]).is_file() and (folder / f["name"]).stat().st_size == f["size"]
+                   for f in info["files"])
+    except Exception:
+        return False
 
 
 def dev_python() -> Path | None:

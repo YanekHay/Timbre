@@ -48,9 +48,13 @@ def main() -> None:
         emit = lambda f, stage, msg="": protocol.progress(rid, f, stage, msg)  # noqa: E731
         try:
             if cmd == "load":
+                cancel.clear()
+                models_dir = req.get("models_dir") or os.path.join(
+                    os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "Timbre", "models")
                 status = backend.load(req.get("device", "cpu"), req.get("precision", "fp32"),
                                       req.get("model", DEFAULT_MODEL),
-                                      bool(req.get("text_normalization", False)), emit)
+                                      bool(req.get("text_normalization", False)), emit,
+                                      models_dir=models_dir, cancel=cancel)
                 protocol.result(rid, **status)
             elif cmd == "unload":
                 backend.unload()
@@ -60,7 +64,7 @@ def main() -> None:
                 payload = backend.synthesize(req, cancel, lambda f, stage, msg="": emit(f, stage, msg))
                 protocol.result(rid, **payload)
         except Cancelled:
-            protocol.error(rid, "Generation cancelled.", kind="cancelled")
+            protocol.error(rid, "Cancelled.", kind="cancelled")
         except Exception as exc:  # report everything; the UI decides how to show it
             kind = "oom" if "out of memory" in str(exc).lower() else "error"
             if kind == "oom":

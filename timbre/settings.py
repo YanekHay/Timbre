@@ -87,7 +87,7 @@ class AppSettings:
     theme: str = "system"
     python_path: str = ""
     runtime_variant: str = ""
-    hf_home: str = ""
+    models_dir: str = ""              # "" = %LOCALAPPDATA%\Timbre\models
     device: DeviceConfig = field(default_factory=DeviceConfig)
     studio: Profile = field(default_factory=Profile)
     active_profile: str = ""

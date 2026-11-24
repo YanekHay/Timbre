@@ -40,7 +40,7 @@ class EngineClient(QObject):
         self._expected_stop = False
 
     # ------------------------------------------------------------- lifecycle
-    def start(self, python: str, hf_home: str = "") -> None:
+    def start(self, python: str) -> None:
         self.stop()
         self.python = python
         proc = QProcess(self)
@@ -49,8 +49,6 @@ class EngineClient(QObject):
         env.insert("PYTHONUNBUFFERED", "1")
         env.remove("PYTHONPATH")
         env.remove("PYTHONHOME")
-        if hf_home:
-            env.insert("HF_HOME", hf_home)
         proc.setProcessEnvironment(env)
         proc.setWorkingDirectory(str(paths.engine_script().parent))
         proc.readyReadStandardOutput.connect(self._read_stdout)

@@ -29,9 +29,6 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Files]
 Source: "..\dist\Timbre\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
-; Model weights ship with the app, so generation works offline right after install.
-Source: "..\models\Ming-3.0-tts-0.5B\*"; DestDir: "{app}\models\Ming-3.0-tts-0.5B"; Flags: ignoreversion nocompression
-
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\Timbre.exe"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Timbre.exe"; Tasks: desktopicon
@@ -50,7 +47,7 @@ begin
     { Only ever delete user data on an explicit "Yes" in an interactive uninstall.
       Silent uninstalls (and suppressed message boxes) always keep it. }
     if DirExists(DataDir) and not UninstallSilent() then
-      if SuppressibleMsgBox('Also remove Timbre''s compute runtimes, saved voices, profiles and history?' + #13#10 +
+      if SuppressibleMsgBox('Also remove Timbre''s compute runtimes, downloaded model, saved voices, profiles and history?' + #13#10 +
                 '(' + DataDir + ', can be several GB. Your generated audio files are not touched.)',
                 mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
         DelTree(DataDir, True, True, True);

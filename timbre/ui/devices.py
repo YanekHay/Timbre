@@ -185,8 +185,11 @@ class DevicesPage(QWidget):
         self.mem_bar.hide()
         self.load_btn = button("Load model", "primary", "bolt")
         self.unload_btn = button("Unload")
+        self.cancel_load_btn = button("Cancel")
+        self.cancel_load_btn.hide()
         self.load_btn.clicked.connect(lambda: self.c.load_model())
         self.unload_btn.clicked.connect(self.c.unload_model)
+        self.cancel_load_btn.clicked.connect(self.c.cancel)
 
         adv = Section("Advanced", expanded=False)
         self.model_id = QLineEdit(self.c.settings.device.model)
@@ -197,17 +200,16 @@ class DevicesPage(QWidget):
         self.autoload = QCheckBox("Load the model when Timbre starts")
         self.autoload.setChecked(self.c.settings.device.load_on_start)
         self.autoload.toggled.connect(self._autoload_changed)
-        from ..paths import bundled_model_dir
-        bundled = bundled_model_dir()
-        model_hint = (f"Using the weights installed with Timbre ({bundled}). " if bundled else "") + \
-            "Enter a Hugging Face repo id or a local folder to use other Ming-3.0-tts-0.5B weights."
+        model_hint = ("A Hugging Face repo id (downloaded once into the model folder from Settings) "
+                      "or a local folder with Ming-3.0-tts-0.5B weights.")
         adv.add(Field("Model", self.model_id, model_hint),
                 self.tn, self.autoload)
 
         card.add(self.device_list,
                  Field("Precision", self.precision), self.precision_hint,
                  divider(),
-                 hbox(vbox(self.model_state, self.model_bar, spacing=6), None, self.unload_btn, self.load_btn),
+                 hbox(vbox(self.model_state, self.model_bar, spacing=6), None, self.cancel_load_btn,
+                      self.unload_btn, self.load_btn),
                  vbox(hbox(label("Memory", "Muted"), None, self.mem_label), self.mem_bar, spacing=6),
                  adv)
 
@@ -294,6 +296,7 @@ class DevicesPage(QWidget):
         st = self.c.model_status
         ready = self.c.engine.is_ready
         self.model_bar.hide()
+        self.cancel_load_btn.hide()
         if st.get("loaded"):
             dev = self.c.device_info(st["device"]) or {"name": st["device"]}
             want = self.c.resolved_device()
@@ -307,8 +310,16 @@ class DevicesPage(QWidget):
             self.unload_btn.setEnabled(ready)
         else:
             err = st.get("error")
-            self.model_state.setText(f"Couldn't load: {err}" if err else "Model not loaded")
-            self.load_btn.setText("Load model")
+            downloaded = self.c.model_downloaded()
+            if err:
+                text = f"Couldn't load: {err}"
+            elif downloaded:
+                text = "Model downloaded · not loaded"
+            else:
+                text = "Model not downloaded yet · about 3 GB once, then it works offline"
+            self.model_state.setText(text)
+            self.model_state.setToolTip(str(self.c.model_folder()))
+            self.load_btn.setText("Load model" if downloaded else "Download and load")
             self.load_btn.setEnabled(ready and not self.c.loading)
             self.unload_btn.setEnabled(False)
 
@@ -321,6 +332,7 @@ class DevicesPage(QWidget):
             self.model_bar.setValue(int(f * 1000))
         self.model_state.setText(msg)
         self.load_btn.setEnabled(False)
+        self.cancel_load_btn.setVisible(self.c.loading)
 
     def _memory(self, m: dict) -> None:
         total, alloc = m.get("total"), m.get("allocated")

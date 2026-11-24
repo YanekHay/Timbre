@@ -64,7 +64,7 @@ class Controller(QObject):
         if not python:
             self.needsSetup.emit()
             return False
-        self.engine.start(python, self.settings.hf_home)
+        self.engine.start(python)
         return True
 
     def restart_engine(self) -> None:
@@ -88,8 +88,12 @@ class Controller(QObject):
             self.devices = msg["devices"]
             self.best_device = msg["best"]
             self.devicesChanged.emit(self.devices)
-            if self.settings.device.load_on_start and not self.model_status.get("loaded"):
+            # Never start a multi-GB download unprompted: auto-load only weights already on disk.
+            if (self.settings.device.load_on_start and not self.model_status.get("loaded")
+                    and self.model_downloaded()):
                 self.load_model()
+            else:
+                self.modelStatusChanged.emit(self.model_status)
         self.engine.request("probe", on_result=done)
 
     def resolved_device(self) -> tuple[str, str]:
@@ -126,23 +130,34 @@ class Controller(QObject):
 
         def failed(msg):
             self.loading = False
-            self.model_status = {"loaded": False, "error": msg.get("message")}
+            cancelled = msg.get("kind") == "cancelled"
+            self.model_status = {"loaded": False} if cancelled else {"loaded": False, "error": msg.get("message")}
             self.modelStatusChanged.emit(self.model_status)
+            if cancelled:
+                self.toast.emit("Download paused. It picks up where it stopped next time.")
             self.generationFailed.emit("Couldn't load the model: " + msg.get("message", ""), msg.get("kind", ""))
 
         self.engine.request("load", on_result=done, on_error=failed, on_progress=progress,
-                            device=device, precision=precision, model=self.model_source(),
+                            device=device, precision=precision, model=self.settings.device.model.strip(),
+                            models_dir=str(self.models_path()),
                             text_normalization=self.settings.device.text_normalization)
 
-    def model_source(self) -> str:
-        """The bundled weights unless the user picked another model in Devices → Advanced."""
-        from .paths import bundled_model_dir
-        from .settings import DEFAULT_MODEL
-        chosen = self.settings.device.model.strip() or DEFAULT_MODEL
-        bundled = bundled_model_dir()
-        if chosen == DEFAULT_MODEL and bundled:
-            return str(bundled)
-        return chosen
+    def models_path(self):
+        from .paths import models_dir
+        return models_dir(self.settings.models_dir)
+
+    def model_folder(self):
+        from .paths import model_folder
+        return model_folder(self.settings.models_dir, self.settings.device.model)
+
+    def model_downloaded(self) -> bool:
+        """True when the weights are on disk (or the model setting points at a local folder)."""
+        from pathlib import Path
+        from .paths import model_downloaded
+        model = self.settings.device.model.strip()
+        if Path(model).is_dir():
+            return True
+        return model_downloaded(self.model_folder())
 
     def unload_model(self) -> None:
         def done(msg):

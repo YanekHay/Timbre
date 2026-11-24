@@ -25,15 +25,17 @@ class SettingsPage(QWidget):
         appearance.add(label("Appearance", "SectionTitle"), Field("Theme", self.theme))
 
         storage = Card()
-        self.hf_home = PathField("Default Hugging Face cache", directory=True)
-        self.hf_home.set_value(self.c.settings.hf_home)
-        self.hf_home.changed.connect(self._hf_home)
+        from ..paths import models_dir
+        self.models = PathField(str(models_dir()), directory=True)
+        self.models.set_value(self.c.settings.models_dir)
+        self.models.changed.connect(self._models_dir)
         open_data = button("Open Timbre's data folder", icon="folder")
         open_data.clicked.connect(lambda: os.startfile(paths.data_dir()))
         storage.add(label("Storage", "SectionTitle"),
-                    Field("Model download folder", self.hf_home,
-                          "Where model weights are cached (about 2 GB). Leave empty to share the standard "
-                          "Hugging Face cache with other apps. Takes effect after the engine restarts."),
+                    Field("Model folder", self.models,
+                          "Where the model weights are downloaded (about 3 GB, once). Leave empty for the default. "
+                          "Changing it doesn't move an existing download; Timbre downloads again into the new folder "
+                          "the next time the model loads."),
                     Field("App data", None, f"Settings, voices, profiles, runtimes and history live in {paths.data_dir()}"),
                     hbox(open_data, None))
 
@@ -56,6 +58,6 @@ class SettingsPage(QWidget):
         self.c.save()
         self.t.apply(mode)
 
-    def _hf_home(self, path: str) -> None:
-        self.c.settings.hf_home = path.strip()
+    def _models_dir(self, path: str) -> None:
+        self.c.settings.models_dir = path.strip()
         self.c.save()

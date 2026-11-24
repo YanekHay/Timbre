@@ -45,9 +45,6 @@ $iscc = @(
     "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not (Test-Path "models\Ming-3.0-tts-0.5B\model.safetensors")) {
-    throw "Model weights not found in models\Ming-3.0-tts-0.5B (they are not stored in git). Download them with:`n  hf download inclusionAI/Ming-3.0-tts-0.5B --local-dir models\Ming-3.0-tts-0.5B --exclude '*.pdf' 'figures/*' 'README.md'"
-}
 if ($iscc) {
     & $iscc packaging\installer.iss
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }

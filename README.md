@@ -34,7 +34,8 @@ Timbre.exe (Qt 6 / PySide6 UI, no torch)
    ▼
 engine/worker.py (runs in the per-GPU runtime: %LOCALAPPDATA%\Timbre\runtimes\<variant>)
    ├─ devices.py      CUDA / ROCm / XPU / DirectML / CPU discovery, memory stats
-   ├─ ming_backend.py download with progress, load, synthesis, cancel, progress
+   ├─ model_store.py  resumable, verified weight download into Timbre's model folder
+   ├─ ming_backend.py load, synthesis, progress, cancel
    ├─ postprocess.py  resample, loudness, limiter, fades, padding, encoding
    └─ vendor/ming     Ming-3.0-tts runtime (MIT), patched to run on any device/dtype
 ```
@@ -56,16 +57,21 @@ python -m venv .venv
 Running from source, Timbre reuses a nearby `.venv` that already has torch. Otherwise its
 setup screen installs the right runtime.
 
+## Model weights
+
+The installer doesn't include the weights. Timbre downloads them (about 3 GB) the first time
+the model loads, into `%LOCALAPPDATA%\Timbre\models` (changeable in Settings → Storage):
+
+- Plain files pinned to one model revision, so there are no cache symlinks.
+- Interrupted or cancelled downloads resume where they stopped, and network errors are retried.
+- Every file is checked against its published size and SHA-256 before it's used.
+- If the same revision is already in your Hugging Face cache, it's copied instead of downloaded.
+- After a verified download, loading never touches the network.
+
+Startup never starts the download by itself. It begins when you generate, or press
+**Download and load** in Devices.
+
 ## Build the installer
-
-The installer ships the model weights (about 2.8 GB). They are not stored in git, so fetch them once:
-
-```powershell
-pip install "huggingface_hub[cli]"
-hf download inclusionAI/Ming-3.0-tts-0.5B --local-dir models\Ming-3.0-tts-0.5B --exclude "*.pdf" "figures/*" "README.md"
-```
-
-Then build:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging\build.ps1
@@ -76,7 +82,7 @@ The build script produces:
 - `dist\Timbre\`: the app folder.
 - `dist\Timbre-Setup-0.1.0.exe`: the installer, built when Inno Setup 6 is present (`winget install JRSoftware.InnoSetup`).
 
-The installer is per-user, needs no admin rights, and asks on uninstall whether to remove downloaded runtimes.
+The installer is per-user, needs no admin rights, and asks on uninstall whether to remove downloaded runtimes and model weights.
 
 ## Support status
 

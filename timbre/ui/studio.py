@@ -499,7 +499,8 @@ class StudioPage(QWidget):
         elif engine in ("stopped", "crashed"):
             msg = "The speech engine isn't running." if engine == "crashed" else "No compute runtime yet."
         elif not self.c.model_status.get("loaded"):
-            msg = "The model loads when you generate."
+            msg = ("The model loads when you generate." if self.c.model_downloaded() else
+                   "The model (about 3 GB) downloads the first time you generate.")
         else:
             dev = self.c.device_info(self.c.model_status.get("device", "")) or {}
             msg = f"Ready on {dev.get('name', self.c.model_status.get('device'))}"
@@ -540,7 +541,7 @@ class StudioPage(QWidget):
 
     def _model_progress(self, f: float, msg: str) -> None:
         self.progress.show()
-        self.cancel_btn.hide()
+        self.cancel_btn.setVisible(self.c.loading)   # a download can be cancelled and resumes later
         self.generate_btn.setEnabled(False)
         self._set_progress(f, msg)
 
