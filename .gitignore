@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.build-venv/
+
+# Build output
+build/
+build-runtime/
+dist/
+packaging/timbre.ico
+packaging/timbre.png
+
+# Downloaded at build time
+bin/
+models/
