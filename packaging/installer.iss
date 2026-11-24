@@ -2,7 +2,7 @@
 ; Per-user install: no administrator rights needed.
 
 #define AppName "Timbre"
-#define AppVersion "0.1.0"
+#define AppVersion "0.2.0"
 
 [Setup]
 AppId={{6A0C9E3B-7C51-4C3E-9B0E-2F8D6B1E7A41}
