@@ -92,7 +92,8 @@ class VoicesPage(QWidget):
         self.c = controller
         self.player = player
         add = button("Add voice", "primary", "plus")
-        add.clicked.connect(self.add_voice)
+        # clicked(bool) would otherwise land in add_voice's `audio` argument.
+        add.clicked.connect(lambda: self.add_voice())
         header = PageHeader("Voices", "Saved recordings you can clone in Studio.", [add])
         self.list = QListWidget()
         self.list.setSelectionMode(QListWidget.NoSelection)
