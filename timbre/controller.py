@@ -53,6 +53,7 @@ class Controller(QObject):
         self.loading = False
         self.generating = False
         self.python_source = ""
+        self.batch_running = False      # the player stays quiet while a batch runs
         self._queued_generation: tuple | None = None
         self.engine.stateChanged.connect(self._engine_state)
         self.memory_timer = QTimer(self, interval=2500, timeout=self._poll_memory)
@@ -184,19 +185,24 @@ class Controller(QObject):
         saved = self.library.get(v.library_id) if v.library_id else None
         return saved.name if saved else (Path(v.reference_audio).stem or "Cloned voice")
 
-    def output_path(self, text: str, profile: Profile, seed: int) -> Path:
+    def output_path(self, text: str, profile: Profile, seed: int, name: str = "",
+                    subfolder: str = "") -> Path:
         out = profile.output
         now = datetime.now()
-        name = out.name_template or "{date}_{time}_{voice}_{text}"
+        template = out.name_template or "{date}_{time}_{voice}_{text}"
         tokens = {"date": now.strftime("%Y-%m-%d"), "time": now.strftime("%H%M%S"),
                   "voice": _slug(self.voice_label(profile), 24), "text": _slug(text),
                   "seed": str(seed) if seed >= 0 else "random"}
         try:
-            stem = name.format(**tokens)
+            stem = template.format(**tokens)
         except (KeyError, IndexError, ValueError):
             stem = "{date}_{time}_{voice}_{text}".format(**tokens)
+        if name:                                    # batch items name their own files
+            stem = name
         stem = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "-", stem).strip(" .") or "take"
         folder = out.resolved_folder()
+        if subfolder:
+            folder = folder / (re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "-", subfolder).strip(" .") or "batch")
         folder.mkdir(parents=True, exist_ok=True)
         ext = {"wav": ".wav", "flac": ".flac", "mp3": ".mp3", "ogg": ".ogg"}[out.format]
         path, n = folder / (stem + ext), 2
@@ -204,7 +210,7 @@ class Controller(QObject):
             path, n = folder / f"{stem}-{n}{ext}", n + 1
         return path
 
-    def generate(self, text: str, profile: Profile) -> None:
+    def generate(self, text: str, profile: Profile, name: str = "", subfolder: str = "") -> None:
         if self.generating:
             return
         if not self.engine.is_ready:
@@ -214,7 +220,7 @@ class Controller(QObject):
             self.generating = True
             self.generationStarted.emit()
             self.generating = False
-            self.load_model(then=lambda: self.generate(text, profile))
+            self.load_model(then=lambda: self.generate(text, profile, name, subfolder))
             return
 
         v = profile.voice
@@ -224,10 +230,11 @@ class Controller(QObject):
             if saved:
                 voice["reference_audio"] = saved.audio
                 voice["reference_text"] = saved.transcript
-        path = self.output_path(text, profile, profile.generation.seed)
+        path = self.output_path(text, profile, profile.generation.seed, name, subfolder)
         self.generating = True
         self.generationStarted.emit()
         started = time.time()
+        from_batch = self.batch_running
 
         def progress(msg):
             f = msg.get("fraction")
@@ -247,6 +254,7 @@ class Controller(QObject):
             self.history.add(item)
             item.peaks = full_peaks
             self.memoryChanged.emit(msg.get("memory", {}))
+            item.from_batch = from_batch
             self.generationFinished.emit(item)
             if out.open_folder_after:
                 from .ui.player import reveal_in_explorer

@@ -24,6 +24,11 @@ A Windows desktop app for local, private text to speech, built on **Ming-3.0-tts
   - Timbre installs the matching PyTorch build: CUDA, ROCm, Intel XPU, DirectML or CPU.
   - You choose the device and precision (BF16/FP16/FP32) and can watch live VRAM use.
   - You can also point Timbre at your own Python environment.
+- **Batch**
+  - Add or drop `.txt` / `.md` files; each file, paragraph or line becomes its own take.
+  - Takes run back to back with the Studio voice and output settings, into a named subfolder.
+  - Each output file is named after its item, and you can rename items before starting.
+  - Stop after the current take, cancel, or resume later; a failed take doesn't stop the rest.
 - **History** of every take, with search, playback and one-click reuse of its settings.
 
 ## Architecture

@@ -14,6 +14,8 @@ _F = 'fill="{c}" stroke="none"'
 
 PATHS = {
     "studio": f'<g {_S}><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></g>',
+    "batch": f'<g {_S}><rect x="4" y="4" width="16" height="5" rx="1.5"/><rect x="4" y="11" width="16" height="4" rx="1.2"/>'
+             f'<rect x="4" y="17" width="16" height="3" rx="1"/></g>',
     "voices": f'<g {_S}><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.4 3.2-5.5 6-5.5s5.2 2.1 6 5.5"/>'
               f'<path d="M17.5 6.5a4 4 0 0 1 0 5M20 4a7.5 7.5 0 0 1 0 10"/></g>',
     "history": f'<g {_S}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></g>',

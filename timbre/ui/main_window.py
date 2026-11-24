@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QFrame, QHBoxLayout, 
 from ..settings import from_dict, Profile
 from . import icons
 from .devices import DevicesPage
+from .batch import BatchPage
 from .history import HistoryPage, take_meta
 from .player import PlayerBar
 from .settings_page import SettingsPage
@@ -73,8 +74,9 @@ class StatusPill(QWidget):
 
 
 class MainWindow(QMainWindow):
-    PAGES = [("Studio", "studio"), ("Voices", "voices"), ("History", "history"),
+    PAGES = [("Studio", "studio"), ("Batch", "batch"), ("Voices", "voices"), ("History", "history"),
              ("Devices", "devices"), ("Settings", "settings")]
+    DEVICES = 4
 
     def __init__(self, controller):
         super().__init__()
@@ -116,13 +118,14 @@ class MainWindow(QMainWindow):
 
         # Pages
         self.player = PlayerBar()
-        self.studio = StudioPage(controller, open_devices=lambda: self.go(3))
+        self.studio = StudioPage(controller, open_devices=lambda: self.go(self.DEVICES))
+        self.batch = BatchPage(controller, self.studio)
         self.voices = VoicesPage(controller, self.player)
         self.history_page = HistoryPage(controller)
         self.devices = DevicesPage(controller)
         self.settings_page = SettingsPage(controller, theme())
         self.stack = QStackedWidget()
-        for page in (self.studio, self.voices, self.history_page, self.devices, self.settings_page):
+        for page in (self.studio, self.batch, self.voices, self.history_page, self.devices, self.settings_page):
             self.stack.addWidget(page)
 
         right = QWidget()
@@ -155,6 +158,7 @@ class MainWindow(QMainWindow):
         self.voices.useVoice.connect(self._use_voice)
         self.history_page.reuseTake.connect(self._reuse)
         self.history_page.playTake.connect(lambda item: item and self._play_history(item))
+        self.batch.playTake.connect(self._play_history)
         theme().changed.connect(self._theme_changed)
         self._theme_changed(P())
 
@@ -181,7 +185,9 @@ class MainWindow(QMainWindow):
                 "source": "design" if mode == "design" else "generation"}
 
     def _take_ready(self, item) -> None:
-        self.player.load(self._player_item(item, item.profile.get("voice", {}).get("mode", "")), autoplay=True)
+        # Batch takes load into the player quietly instead of playing over each other.
+        autoplay = not getattr(item, "from_batch", False)
+        self.player.load(self._player_item(item, item.profile.get("voice", {}).get("mode", "")), autoplay=autoplay)
 
     def _play_history(self, item) -> None:
         self.player.load(self._player_item(item), autoplay=True)
@@ -209,7 +215,7 @@ class MainWindow(QMainWindow):
         if SetupDialog(self.c, self).exec():
             self.c.start_engine()
         else:
-            self.go(3)
+            self.go(self.DEVICES)
 
     def _theme_changed(self, palette) -> None:
         icons.refresh_all()

@@ -135,6 +135,7 @@ class MingBackend:
             except Exception:
                 text_normalization = False
 
+        self._check_free_memory(device_id, precision)
         from ming_tts import MingTTS
         t0 = time.time()
         self.tts = MingTTS(local, device=devices.to_torch_device(device_id),
@@ -145,6 +146,25 @@ class MingBackend:
         emit(1.0, "load", f"Ready in {time.time() - t0:.1f}s")
         return {**self.status(), "text_normalization": text_normalization,
                 "memory": devices.memory_stats(device_id)}
+
+    # Measured: ~3.0 GB of weights in 16-bit plus working memory; FP32 doubles the weights.
+    NEEDED_GB = {"bf16": 3.3, "fp16": 3.3, "fp32": 6.3}
+
+    def _check_free_memory(self, device_id: str, precision: str) -> None:
+        """Fail fast with a clear reason instead of crawling when another app holds the GPU.
+        On Windows an over-full GPU spills into system RAM, so loading looks frozen rather than failing."""
+        if not (device_id.startswith("cuda") and torch.cuda.is_available()):
+            return
+        try:
+            free, total = torch.cuda.mem_get_info(torch.device(device_id).index or 0)
+        except Exception:
+            return
+        need = self.NEEDED_GB.get(precision, 3.3) * 1e9
+        if free < need:
+            raise MemoryError(
+                f"Only {free / 1e9:.1f} GB of the GPU's {total / 1e9:.1f} GB is free, and the model needs about "
+                f"{need / 1e9:.1f} GB. Another app (a game, browser or other AI tool) is using the GPU. "
+                "Close it, or choose the CPU in Devices.")
 
     def unload(self):
         if self.tts is None:
