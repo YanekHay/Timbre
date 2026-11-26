@@ -20,7 +20,19 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Timbre")
     app.setOrganizationName("Timbre")
-    app.setStyle("Fusion")
+    from PySide6.QtWidgets import QProxyStyle, QStyle, QStyleFactory
+
+    class _Style(QProxyStyle):
+        """Fusion, with tooltips that appear quickly: the help icons rely on them."""
+
+        def styleHint(self, hint, option=None, widget=None, data=None):
+            if hint == QStyle.SH_ToolTip_WakeUpDelay:
+                return 250
+            if hint == QStyle.SH_ToolTip_FallAsleepDelay:
+                return 4000
+            return super().styleHint(hint, option, widget, data)
+
+    app.setStyle(_Style(QStyleFactory.create("Fusion")))
     font = QFont("Segoe UI Variable Text")
     font.setPointSizeF(9.75)
     font.setHintingPreference(QFont.PreferNoHinting)

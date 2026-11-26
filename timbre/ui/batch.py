@@ -12,7 +12,13 @@ from PySide6.QtWidgets import (QCheckBox, QFileDialog, QLineEdit, QListWidget, Q
                                QMessageBox, QProgressBar, QVBoxLayout, QWidget)
 
 from .player import reveal_in_explorer
-from .widgets import (Card, Field, PageHeader, Segmented, badge, button, hbox, icon_button, label, vbox)
+from .widgets import (Card, Combo, Field, PageHeader, Segmented, SummaryRow, badge, button, divider, hbox,
+                      icon_button, label, scroll_page, vbox)
+
+def catalog_languages():
+    from .. import catalog
+    return catalog.LANGUAGES
+
 
 TEXT_FILTER = "Text (*.txt *.md);;All files (*)"
 
@@ -121,6 +127,7 @@ class ItemRow(QWidget):
 
 class BatchPage(QWidget):
     playTake = Signal(object)
+    openStudio = Signal()
 
     def __init__(self, controller, studio):
         super().__init__()
@@ -139,59 +146,104 @@ class BatchPage(QWidget):
         add.clicked.connect(lambda: self.add_files())
         clear = button("Clear finished", "ghost", "x")
         clear.clicked.connect(self.clear_finished)
-        header = PageHeader("Batch", "Generate many texts back to back, one audio file each.", [clear, add])
+        header = PageHeader("Batch", "Turn many texts into audio files in one go, one file per take.")
 
-        # Import options
+        # ---------- left: the queue
         self.split = Segmented([("Whole file", "file"), ("Each paragraph", "paragraph"), ("Each line", "line")])
-        self.split.setMaximumWidth(420)
-        self.subfolder_on = QCheckBox("Save into a subfolder")
-        self.subfolder_on.setChecked(True)
-        self.subfolder = QLineEdit(datetime.now().strftime("Batch %Y-%m-%d"))
-        self.subfolder.setMaximumWidth(260)
-        self.subfolder_on.toggled.connect(self.subfolder.setEnabled)
-        options = Card(padding=16, spacing=12)
-        options.add(hbox(Field("Each take is", self.split,
-                               "How imported files are split into takes. Blank lines separate paragraphs."),
-                         None, spacing=16),
-                    hbox(self.subfolder_on, self.subfolder, None, spacing=10),
-                    label("Voice, generation and output settings come from Studio when you start the batch.",
-                          "Hint", wrap=True))
+        self.split.setMaximumWidth(380)
+        import_row = hbox(Field("Split imported files into", self.split, help=(
+            "Applies to files you add next. Whole file: one audio file per text file. Each paragraph: "
+            "paragraphs separated by a blank line become separate takes. Each line: every non-empty line "
+            "becomes a take.")), None, clear, add, spacing=10)
+        import_row.setAlignment(clear, Qt.AlignBottom)
+        import_row.setAlignment(add, Qt.AlignBottom)
 
-        # Queue
+        self.columns = QWidget()
+        self.columns.setLayout(hbox(label("#", "ColHeader"), 14, label("FILE NAME", "ColHeader"), 168,
+                                    label("TEXT", "ColHeader"), None, label("STATUS", "ColHeader"), 96,
+                                    margins=(14, 0, 12, 0), spacing=0))
         self.list = QListWidget()
         self.list.setSelectionMode(QListWidget.NoSelection)
         self.list.setSpacing(2)
-        self.empty = label("Add .txt or .md files, or drop them here.\n"
+        self.empty = label("Drop .txt or .md files here, or use Add text files.\n"
                            "Each file, paragraph or line becomes its own audio file.", "Muted")
         self.empty.setAlignment(Qt.AlignCenter)
-        queue = Card(padding=8)
-        queue.add(self.list, self.empty)
+        queue = Card(padding=8, spacing=6)
+        queue.add(self.columns, self.list, self.empty)
+        left = QWidget()
+        left.setLayout(vbox(import_row, queue, spacing=12))
+        left.layout().setStretch(1, 1)
 
-        # Run bar
-        self.summary = label("", "Muted")
+        # ---------- right: exactly what this batch will use
+        from ..settings import list_profiles
+        from .voice_picker import VoiceCard
+        self.source = Combo()
+        self.source.addItem("Current Studio settings", "")
+        for name in list_profiles():
+            self.source.addItem(f"Profile: {name}", name)
+        self.source.currentIndexChanged.connect(lambda *_: self.refresh_settings())
+        self.voice_card = VoiceCard(readonly=True)
+        self.rows_summary = {k: SummaryRow(t, help=h) for k, t, h in (
+            ("speed", "Speed", "Tempo of the finished audio. Change it in Studio, Voice tab."),
+            ("language", "Language", "Language hint sent to the model."),
+            ("format", "File", "Format, bit depth and sample rate of every file in the batch."),
+            ("loudness", "Loudness", "How every file is levelled, so takes match each other."),
+            ("folder", "Saves to", "Folder the batch writes into."),
+        )}
+        self.edit_btn = button("Change in Studio", "link")
+        self.edit_btn.clicked.connect(self.openStudio.emit)
+        self.lock_note = label("Locked while the batch runs.", "Hint")
+        self.lock_note.hide()
+        self.subfolder_on = QCheckBox("Put the files in a subfolder")
+        self.subfolder_on.setChecked(True)
+        self.subfolder = QLineEdit(datetime.now().strftime("Batch %Y-%m-%d"))
+        self.subfolder_on.toggled.connect(self.subfolder.setEnabled)
+        self.subfolder_on.toggled.connect(lambda *_: self.refresh_settings())
+        self.subfolder.textChanged.connect(lambda *_: self.refresh_settings())
+
+        self.summary = label("", "Muted", wrap=True)
         self.overall = QProgressBar()
         self.overall.setTextVisible(False)
         self.overall.setRange(0, 1000)
         self.overall.hide()
         self.stop_btn = button("Stop after this take")
+        self.stop_btn.setToolTip("Finish the take that is generating now, then stop. Remaining takes stay queued.")
         self.stop_btn.clicked.connect(self._stop_after)
         self.cancel_btn = button("Cancel", icon="x")
+        self.cancel_btn.setToolTip("Stop now. The current take is discarded and stays queued.")
         self.cancel_btn.clicked.connect(self._cancel)
         self.start_btn = button("Start batch", "primary", "play")
-        self.start_btn.setMinimumHeight(36)
+        self.start_btn.setMinimumHeight(38)
         self.start_btn.clicked.connect(self.start)
-        status = QWidget()
-        status.setLayout(vbox(self.summary, self.overall, spacing=6))
-        run = hbox(status, self.stop_btn, self.cancel_btn, self.start_btn, spacing=10)
-        run.setStretch(0, 1)
 
+        settings = Card(padding=20, spacing=12)
+        settings.add(label("Batch settings", "SectionTitle"),
+                     Field("Use settings from", self.source, help=(
+                         "Current Studio settings uses whatever is set in Studio right now. A profile uses "
+                         "the voice and settings saved in it, whatever Studio shows.")),
+                     Field("Voice", self.voice_card, help="Every take in this batch is spoken by this voice."),
+                     *self.rows_summary.values(),
+                     hbox(self.edit_btn, None, self.lock_note),
+                     divider(),
+                     Field("Output folder", None, help="Keeps the batch together instead of mixing it with other takes."),
+                     self.subfolder_on, self.subfolder,
+                     divider(),
+                     self.summary, self.overall,
+                     hbox(self.stop_btn, self.cancel_btn, None),
+                     self.start_btn)
+        settings.setMinimumWidth(340)
+        settings.setMaximumWidth(400)
+        right = scroll_page(settings)
+        right.setMinimumWidth(360)
+        right.setMaximumWidth(420)
+
+        body = hbox(left, right, spacing=20)
+        body.setStretch(0, 1)
         root = QVBoxLayout(self)
         root.setContentsMargins(28, 24, 28, 20)
         root.setSpacing(16)
         root.addWidget(header)
-        root.addWidget(options)
-        root.addWidget(queue, 1)
-        root.addLayout(run)
+        root.addLayout(body, 1)
 
         c = self.c
         c.generationProgress.connect(self._progress)
@@ -311,10 +363,64 @@ class BatchPage(QWidget):
             self.overall.setValue(int(frac * 1000))
 
     # --------------------------------------------------------------- run
+    # ---------------------------------------------------------- settings
+    def chosen_profile(self):
+        from ..settings import load_profile
+        name = self.source.value()
+        if name:
+            try:
+                return load_profile(name)
+            except Exception:
+                self.source.set_value("")
+        return self.studio.inspector.profile()
+
+    def refresh_settings(self) -> None:
+        """Show exactly what the batch will use (or is using, while running)."""
+        from .history import format_label
+        from .voice_picker import summarize
+        p = self.profile if self.running and self.profile else self.chosen_profile()
+        self.voice_card.set_summary(summarize(p.voice, self.c.library))
+        o = p.output
+        lang = dict((v, k) for k, v in catalog_languages()).get(p.voice.language, p.voice.language)
+        rate = "44.1 kHz" if not o.sample_rate else f"{o.sample_rate / 1000:g} kHz"
+        fmt = format_label(o.format if o.format in ("mp3", "ogg") else f"{o.format}-{o.bit_depth}")
+        loud = {"loudness": f"{o.target_lufs:g} LUFS", "peak": f"Peak {o.peak_db:g} dB", "off": "Unchanged"}[o.normalize]
+        folder = o.resolved_folder()
+        if self.subfolder_on.isChecked() and self.subfolder.text().strip():
+            folder = folder / self.subfolder.text().strip()
+        self.rows_summary["speed"].set(f"{o.speed:.2f}×" + ("  (natural)" if abs(o.speed - 1) < 1e-3 else ""))
+        self.rows_summary["language"].set(lang)
+        self.rows_summary["format"].set(f"{fmt} · {rate} · {'Stereo' if o.channels == 2 else 'Mono'}")
+        self.rows_summary["loudness"].set(loud)
+        self.rows_summary["folder"].set(str(folder))
+        self.rows_summary["folder"].value.setToolTip(str(folder))
+        self.edit_btn.setVisible(not self.source.value() and not self.running)
+
+    def _lock(self, on: bool) -> None:
+        for w in (self.source, self.subfolder_on, self.subfolder, self.split):
+            w.setEnabled(not on)
+        self.lock_note.setVisible(on)
+        self.refresh_settings()
+
+    def showEvent(self, e) -> None:
+        # Studio may have changed while this page was hidden.
+        from ..settings import list_profiles
+        current = self.source.value()
+        self.source.blockSignals(True)
+        self.source.clear()
+        self.source.addItem("Current Studio settings", "")
+        for name in list_profiles():
+            self.source.addItem(f"Profile: {name}", name)
+        self.source.set_value(current)
+        self.source.blockSignals(False)
+        self.refresh_settings()
+        super().showEvent(e)
+
     def start(self) -> None:
         if self.running or self.c.generating:
             return
-        self.profile = self.studio.inspector.profile()
+        self.profile = self.chosen_profile()
+        self._lock(True)
         self.running = True
         self.stop_after = False
         self.c.batch_running = True
@@ -333,6 +439,7 @@ class BatchPage(QWidget):
         self.c.generate(nxt.text, self.profile, name=nxt.name, subfolder=folder)
 
     def _end(self) -> None:
+        self._lock(False)
         was_running = self.running
         self.running = False
         self.current = None

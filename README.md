@@ -5,6 +5,7 @@ A Windows desktop app for local, private text to speech, built on **Ming-3.0-tts
 
 ## Features
 
+- **One active voice**, chosen from a searchable picker. The Studio and Batch screens always show which voice will speak.
 - **Voices**
   - Built-in presets
   - Voice design from a written description
@@ -12,7 +13,9 @@ A Windows desktop app for local, private text to speech, built on **Ming-3.0-tts
   - Zero-shot cloning from a short recording, with emotion or prosody (speed, pitch, volume) control
   - A voice library for reusing voices
 - **Full control**
+  - Speed: 0.70–1.30×, changes the pace without changing the pitch
   - Generation: guidance, variation, temperature, chunking, decode steps, paragraph pauses, seed
+  - Every setting has a `?` with a short explanation on hover
   - Profiles: save, import and export complete setups
 - **Output**
   - WAV (16/24/32-bit float), FLAC, MP3 and Ogg

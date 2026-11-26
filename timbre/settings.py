@@ -61,6 +61,7 @@ class OutputConfig:
     folder: str = ""
     name_template: str = "{date}_{time}_{voice}_{text}"
     open_folder_after: bool = False
+    speed: float = 1.0                # tempo of the finished audio (pitch unchanged)
 
     def resolved_folder(self) -> Path:
         return Path(self.folder) if self.folder else default_output_dir()

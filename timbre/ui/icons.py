@@ -14,6 +14,11 @@ _F = 'fill="{c}" stroke="none"'
 
 PATHS = {
     "studio": f'<g {_S}><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></g>',
+    "help": f'<g {_S}><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8"/><path d="M12 17.2v.1"/></g>',
+    "pen": f'<g {_S}><path d="M4.5 19.5l1-4L15.8 5.2a2 2 0 0 1 2.9 0l.1.1a2 2 0 0 1 0 2.9L8.5 18.5z"/><path d="M13.8 7.2l3 3"/></g>',
+    "chat": f'<g {_S}><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-7l-4.5 3.5v-3.5H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5z"/><path d="M8 10h8M8 13h5"/></g>',
+    "person": f'<g {_S}><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c1-3.9 3.9-6 7.5-6s6.5 2.1 7.5 6"/></g>',
+    "search": f'<g {_S}><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></g>',
     "batch": f'<g {_S}><rect x="4" y="4" width="16" height="5" rx="1.5"/><rect x="4" y="11" width="16" height="4" rx="1.2"/>'
              f'<rect x="4" y="17" width="16" height="3" rx="1"/></g>',
     "voices": f'<g {_S}><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.8-3.4 3.2-5.5 6-5.5s5.2 2.1 6 5.5"/>'

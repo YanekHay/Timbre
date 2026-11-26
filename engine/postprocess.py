@@ -36,6 +36,57 @@ def _db_to_gain(db: float) -> float:
     return 10.0 ** (db / 20.0)
 
 
+def time_stretch(x: np.ndarray, rate: float, sr: int) -> np.ndarray:
+    """WSOLA tempo change for speech. rate < 1 is slower, > 1 faster; pitch is unchanged.
+
+    Overlap-adds 40 ms Hann frames at a fixed output hop. Each input frame is taken near
+    its nominal position, shifted by up to ±10 ms to best match the natural continuation
+    of the previous frame, which avoids the phasiness of a plain phase vocoder.
+    """
+    x = np.asarray(x, dtype=np.float32)
+    frame = int(0.040 * sr) & ~1
+    hop_out = frame // 2
+    hop_in = hop_out * rate
+    tol = int(0.010 * sr)
+    if len(x) < frame * 2:
+        return x
+    win = np.hanning(frame).astype(np.float32)
+    n_out = int(len(x) / rate) + frame
+    y = np.zeros(n_out, dtype=np.float32)
+    wsum = np.zeros(n_out, dtype=np.float32)
+    dec = 4                                         # search on a decimated signal for speed
+    xd = x[::dec]
+    prev = 0
+    k = 0
+    while True:
+        nominal = int(round(k * hop_in))
+        if k == 0:
+            start = 0
+        else:
+            target = prev + hop_out                 # where the previous frame naturally continues
+            lo, hi = max(0, nominal - tol), min(len(x) - frame, nominal + tol)
+            if hi <= lo or target + frame > len(x):
+                start = min(max(nominal, 0), len(x) - frame)
+            else:
+                tmpl = xd[target // dec:(target + frame) // dec]
+                region = xd[lo // dec:(hi + frame) // dec]
+                if len(region) >= len(tmpl) > 0:
+                    corr = np.correlate(region, tmpl, mode="valid")
+                    start = lo + int(np.argmax(corr)) * dec
+                else:
+                    start = nominal
+        out = k * hop_out
+        if start + frame > len(x) or out + frame > n_out:
+            break
+        y[out:out + frame] += x[start:start + frame] * win
+        wsum[out:out + frame] += win
+        prev = start
+        k += 1
+    end = k * hop_out + hop_out
+    y, wsum = y[:end], wsum[:end]
+    return y / np.maximum(wsum, 1e-3)
+
+
 def process(wave: torch.Tensor, sr: int, cfg: dict) -> tuple[np.ndarray, int]:
     """wave: (1, samples) float tensor at the model rate. Returns (samples, channels) float32."""
     x = wave.detach().float().cpu()
@@ -48,6 +99,11 @@ def process(wave: torch.Tensor, sr: int, cfg: dict) -> tuple[np.ndarray, int]:
         x = AF.resample(x, sr, target_sr, lowpass_filter_width=64, rolloff=0.9475,
                         resampling_method="sinc_interp_kaiser", beta=14.769656459379492)
         sr = target_sr
+
+    # Speaking speed: change the tempo, keep the pitch.
+    speed = float(cfg.get("speed") or 1.0)
+    if abs(speed - 1.0) > 1e-3:
+        x = torch.from_numpy(time_stretch(x[0].numpy(), speed, sr)).unsqueeze(0)
 
     # Optional gentle high-pass to remove rumble/DC.
     hp = float(cfg.get("highpass_hz") or 0)

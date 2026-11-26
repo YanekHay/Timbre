@@ -159,6 +159,7 @@ class MainWindow(QMainWindow):
         self.history_page.reuseTake.connect(self._reuse)
         self.history_page.playTake.connect(lambda item: item and self._play_history(item))
         self.batch.playTake.connect(self._play_history)
+        self.batch.openStudio.connect(lambda: self.go(0))
         theme().changed.connect(self._theme_changed)
         self._theme_changed(P())
 

@@ -241,6 +241,26 @@ QScrollBar::add-line, QScrollBar::sub-line {{ width: 0; height: 0; }}
 QScrollBar::add-page, QScrollBar::sub-page {{ background: none; }}
 QSplitter::handle {{ background: transparent; }}
 
+/* ---------- voice card ---------- */
+#VoiceCard {{ background: {p.surface}; border: 1px solid {p.border_strong}; border-radius: 10px; padding: 10px 12px; text-align: left; }}
+#VoiceCard:hover {{ border-color: {p.accent}; background: {p.surface}; }}
+#VoiceCard[readonly="true"], #VoiceCard[readonly="true"]:hover {{ border-color: {p.border}; background: {p.surface2}; }}
+#VoiceAvatar {{ background: {p.accent_weak}; border-radius: 18px; }}
+#VoiceTitle {{ font-weight: 600; }}
+#PickerRow {{ border-radius: 8px; }}
+#PickerSection {{ color: {p.text3}; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; padding: 10px 4px 4px 4px; }}
+
+/* ---------- tabs ---------- */
+#TabBar {{ border-bottom: 1px solid {p.border}; }}
+#Tab {{ background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0;
+        padding: 12px 4px 10px 4px; margin-right: 18px; color: {p.text2}; font-weight: 600; }}
+#Tab:hover {{ color: {p.text}; }}
+#Tab:checked {{ color: {p.text}; border-bottom: 2px solid {p.accent}; }}
+#GroupTitle {{ color: {p.text3}; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; padding-top: 6px; }}
+#ColHeader {{ color: {p.text3}; font-size: 11px; font-weight: 600; letter-spacing: 0.4px; }}
+#Callout {{ background: {p.surface2}; border: 1px solid {p.border}; border-radius: 8px; padding: 10px 12px; color: {p.text2}; }}
+#HelpIcon {{ background: transparent; }}
+
 #Toast {{ background: {p.text}; color: {p.bg}; border-radius: 8px; padding: 10px 14px; }}
 #Badge {{ background: {p.surface2}; border: 1px solid {p.border}; border-radius: 9px; padding: 1px 8px; font-size: 11px; color: {p.text2}; }}
 #BadgeAccent {{ background: {p.accent_weak}; border-radius: 9px; padding: 1px 8px; font-size: 11px; color: {p.accent}; font-weight: 600; }}
