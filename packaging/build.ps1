@@ -62,7 +62,7 @@ $iscc = @(
 if ($iscc) {
     & $iscc packaging\installer.iss
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
-    Write-Host "Installer: dist\Timbre-Setup-0.2.0.exe" -ForegroundColor Green
+    Write-Host "Installer: dist\Timbre-Setup-0.3.0.exe" -ForegroundColor Green
 } else {
     Write-Warning "Inno Setup 6 not found, so only dist\Timbre\ was built. Install it with: winget install JRSoftware.InnoSetup"
 }

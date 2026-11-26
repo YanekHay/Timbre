@@ -88,7 +88,7 @@ powershell -ExecutionPolicy Bypass -File packaging\build.ps1
 The build script produces:
 
 - `dist\Timbre\`: the app folder.
-- `dist\Timbre-Setup-0.2.0.exe`: the installer, built when Inno Setup 6 is present (`winget install JRSoftware.InnoSetup`).
+- `dist\Timbre-Setup-0.3.0.exe`: the installer, built when Inno Setup 6 is present (`winget install JRSoftware.InnoSetup`).
 
 The installer is per-user, needs no admin rights, and asks on uninstall whether to remove downloaded runtimes and model weights.
 
