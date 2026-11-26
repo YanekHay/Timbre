@@ -29,6 +29,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Files]
 Source: "..\dist\Timbre\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; Standalone Python that compute runtimes are built from (no Python download on the user's PC).
+Source: "..\bin\python\*"; DestDir: "{app}\python"; Flags: recursesubdirs createallsubdirs ignoreversion
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\Timbre.exe"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Timbre.exe"; Tasks: desktopicon

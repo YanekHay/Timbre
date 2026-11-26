@@ -34,7 +34,20 @@ class Variant:
 
     @property
     def installed(self) -> bool:
-        return self.python.exists() and (paths.runtimes_dir() / self.key / ".timbre-ok").exists()
+        folder = paths.runtimes_dir() / self.key
+        return self.python.exists() and (folder / ".timbre-ok").exists() and _base_python_ok(folder)
+
+
+def _base_python_ok(venv: Path) -> bool:
+    """A venv only works while the Python it was made from still exists (e.g. after a reinstall elsewhere)."""
+    try:
+        for line in (venv / "pyvenv.cfg").read_text(encoding="utf-8").splitlines():
+            key, _, value = line.partition("=")
+            if key.strip().lower() == "home":
+                return (Path(value.strip()) / "python.exe").exists()
+    except OSError:
+        return False
+    return True
 
 
 def manifest() -> dict:
@@ -89,9 +102,17 @@ class RuntimeInstaller(QObject):
         if self.index:
             torch_step += ["--index-url", self.index, "--extra-index-url", "https://pypi.org/simple",
                            "--index-strategy", "unsafe-best-match"]
+        bundled = paths.bundled_python()
+        if bundled:
+            # Build from the Python shipped with Timbre. uv never downloads or installs a Python then,
+            # which avoids the folder junction uv creates for its own Pythons; some PCs block those
+            # ("untrusted mount point", os error 448).
+            venv_step = [uv, "venv", target, "--python", str(bundled), "--seed", "--allow-existing",
+                         "--no-python-downloads", "--no-managed-python"]
+        else:
+            venv_step = [uv, "venv", target, "--python", data["python"], "--seed", "--allow-existing"]
         return [
-            ("Preparing Python " + data["python"],
-             [uv, "venv", target, "--python", data["python"], "--seed", "--allow-existing"]),
+            ("Preparing Python " + data["python"], venv_step),
             (f"Installing PyTorch ({self.variant.label})", torch_step),
             ("Installing speech model libraries",
              [uv, "pip", "install", "--python", py, *data["common"]]),

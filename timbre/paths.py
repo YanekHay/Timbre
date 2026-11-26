@@ -70,7 +70,18 @@ def uv_executable() -> str | None:
     return shutil.which("uv")
 
 
-MODEL_MARKER = ".timbre-model.json"   # written by engine/model_store.py after a verified download
+def bundled_python() -> Path | None:
+    """The standalone Python shipped with Timbre ({app}\\python, or bin\\python when run from source)."""
+    roots = [Path(sys.executable).parent / "python"] if is_frozen() else []
+    roots.append(resource_root() / "bin" / "python")
+    for root in roots:
+        exe = root / "python.exe"
+        if exe.is_file():
+            return exe
+    return None
+
+
+MODEL_MARKER =".timbre-model.json"   # written by engine/model_store.py after a verified download
 
 
 def models_dir(custom: str = "") -> Path:

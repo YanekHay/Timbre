@@ -89,6 +89,10 @@ The build script produces:
 
 The installer is per-user, needs no admin rights, and asks on uninstall whether to remove downloaded runtimes and model weights.
 
+It also ships a standalone CPython 3.12 (python-build-standalone, checksum-verified at build time). Compute runtimes
+are built from it, so users' PCs never download a Python through uv. That avoids uv's folder junctions, which some
+Windows setups refuse to follow ("untrusted mount point", os error 448).
+
 ## Support status
 
 | Runtime | Status |
